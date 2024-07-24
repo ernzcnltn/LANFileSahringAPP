@@ -10,7 +10,11 @@ namespace LANFileSharingApp
 {
     public partial class Form1 : Form
     {
-        private string serverIPAddress = "172.20.26.115"; // Server IP 
+        private S3Helper s3Helper;
+
+        ResourceManager rm = new ResourceManager("LANFileSharingApp.Resources.Strings", typeof(Form1).Assembly);
+
+        private string serverIPAddress;
         private int port = 49152;
 
         public Form1()
@@ -59,7 +63,16 @@ namespace LANFileSharingApp
                 lstFiles.Items.Clear();
                 foreach (var file in fileList.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries))
                 {
-                    lstFiles.Items.Add(file);
+                    string[] fileInfo = file.Split('|');
+                    string fileName = fileInfo[0];
+                    DateTime fileDate = DateTime.Parse(fileInfo[1]);
+
+                    
+                    if ((selectedFileType == "All" || fileName.EndsWith(selectedFileType)) &&
+                        fileDate.Date == selectedDate &&
+                        fileName.ToLower().Contains(searchTerm))
+                    {
+                        lstFiles.Items.Add($"{fileName} ");
                 }
 
                 reader.Close();
@@ -77,25 +90,14 @@ namespace LANFileSharingApp
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
                 string sourceFilePath = openFileDialog1.FileName;
-                string fileName = Path.GetFileName(sourceFilePath);
 
                 try
                 {
-                    TcpClient client = new TcpClient(serverIPAddress, port);
-                    NetworkStream stream = client.GetStream();
-
-                    byte[] uploadCommand = Encoding.ASCII.GetBytes("UPLOAD " + fileName + "\n");
-                    stream.Write(uploadCommand, 0, uploadCommand.Length);
-
-                    byte[] fileBytes = File.ReadAllBytes(sourceFilePath);
-                    stream.Write(fileBytes, 0, fileBytes.Length);
-
-                    stream.Close();
-                    client.Close();
 
                     MessageBox.Show("File uploaded successfully", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                    lstFiles.Items.Add(fileName);
+                    
+                    lstFiles.Items.Add(Path.GetFileName(sourceFilePath));
                 }
                 catch (Exception ex)
                 {
@@ -110,41 +112,10 @@ namespace LANFileSharingApp
             {
                 string fileName = lstFiles.SelectedItem.ToString();
 
-
-                Console.WriteLine("File name: " + fileName);
-
-
-                fileName = new string(fileName.Where(c => !char.IsControl(c)).ToArray());
-
-
-                Console.WriteLine("Sanitized file name: " + fileName);
-
                 if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
                 {
                     try
                     {
-
-                        if (fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-                        {
-                            throw new ArgumentException("The file name contains invalid characters.");
-                        }
-
-                        string destinationPath = folderBrowserDialog1.SelectedPath;
-
-
-                        Console.WriteLine("Destination path: " + destinationPath);
-
-
-                        if (destinationPath.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
-                        {
-                            throw new ArgumentException("The destination path contains invalid characters.");
-                        }
-
-                        string destinationFilePath = Path.Combine(destinationPath, fileName);
-
-
-                        Console.WriteLine("Destination file path: " + destinationFilePath);
-
                         TcpClient client = new TcpClient(serverIPAddress, port);
                         NetworkStream stream = client.GetStream();
 
@@ -154,10 +125,10 @@ namespace LANFileSharingApp
                         using (FileStream fs = new FileStream(destinationFilePath, FileMode.Create, FileAccess.Write))
                         {
                             byte[] bytes = new byte[1024];
-                            int bytesRead;
-                            while ((bytesRead = stream.Read(bytes, 0, bytes.Length)) > 0)
+                            int i;
+                            while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
                             {
-                                fs.Write(bytes, 0, bytesRead);
+                                fs.Write(bytes, 0, i);
                             }
                         }
 
@@ -174,7 +145,7 @@ namespace LANFileSharingApp
             }
             else
             {
-                MessageBox.Show("Please select a file to download", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Please select a file for download", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
