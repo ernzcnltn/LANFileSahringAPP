@@ -6,32 +6,21 @@ using System.Threading.Tasks;
 
 public class S3Helper
 {
-    private readonly IAmazonS3 s3Client;
-    private readonly string bucketName = "ernzcnltn";
+    private readonly AmazonS3Client s3Client;
 
-    public S3Helper(string accessKey, string secretKey, string region)
+    public S3Helper(string region)
     {
-        var config = new AmazonS3Config
-        {
-            RegionEndpoint = RegionEndpoint.GetBySystemName(region)
-        };
-
-        s3Client = new AmazonS3Client(accessKey, secretKey, config);
+        
+        s3Client = new AmazonS3Client(RegionEndpoint.GetBySystemName(region));
     }
+
 
     public async Task UploadFileAsync(string filePath)
     {
-        try
-        {
-            var fileTransferUtility = new TransferUtility(s3Client);
-            await fileTransferUtility.UploadAsync(filePath, bucketName);
-            Console.WriteLine("File uploaded successfully.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error uploading file: {ex.Message}");
-        }
+        var fileTransferUtility = new TransferUtility(s3Client);
+
+        await fileTransferUtility.UploadAsync(filePath, "your-bucket-name");
     }
 
-   
+
 }

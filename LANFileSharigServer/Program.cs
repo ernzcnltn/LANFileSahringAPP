@@ -14,8 +14,6 @@ class Program
     static int port = 49152;
 
     static string bucketName = "ernzcnltn";
-    static string awsAccessKeyId = "AKIA4MTWKGMFD4ZFZFEM";
-    static string awsSecretAccessKey = "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";
     static RegionEndpoint bucketRegion = RegionEndpoint.EUNorth1;
     static IAmazonS3 s3Client;
 
@@ -26,7 +24,7 @@ class Program
             Directory.CreateDirectory(sharedFolderPath);
         }
 
-        s3Client = new AmazonS3Client(awsAccessKeyId, awsSecretAccessKey, bucketRegion);
+        s3Client = new AmazonS3Client(bucketRegion);
 
         try
         {
