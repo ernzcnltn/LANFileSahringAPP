@@ -118,6 +118,12 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
+  <data name="folder_drive_file_data_transfer_icon_196456__1_" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Resources\folder_drive_file_data_transfer_icon_196456 (1).ico;System.Drawing.Icon, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="iconfinder_servertransfer_4417112_116623" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Resources\iconfinder-servertransfer-4417112_116623.ico;System.Drawing.Icon, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
   <data name="transfer_icon_icons_com_64677" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Resources\transfer_icon-icons.com_64677.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>

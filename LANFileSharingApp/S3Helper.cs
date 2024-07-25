@@ -19,7 +19,7 @@ public class S3Helper
     {
         var fileTransferUtility = new TransferUtility(s3Client);
 
-        await fileTransferUtility.UploadAsync(filePath, "your-bucket-name");
+        await fileTransferUtility.UploadAsync(filePath, "ernzcnltn");
     }
 
 

@@ -81,6 +81,26 @@ namespace LANFileSharingApp {
         }
         
         /// <summary>
+        ///   (Simge) öğesine benzeyen System.Drawing.Icon türünde yerelleştirilmiş bir kaynak arar.
+        /// </summary>
+        internal static System.Drawing.Icon folder_drive_file_data_transfer_icon_196456__1_ {
+            get {
+                object obj = ResourceManager.GetObject("folder_drive_file_data_transfer_icon_196456__1_", resourceCulture);
+                return ((System.Drawing.Icon)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   (Simge) öğesine benzeyen System.Drawing.Icon türünde yerelleştirilmiş bir kaynak arar.
+        /// </summary>
+        internal static System.Drawing.Icon iconfinder_servertransfer_4417112_116623 {
+            get {
+                object obj = ResourceManager.GetObject("iconfinder_servertransfer_4417112_116623", resourceCulture);
+                return ((System.Drawing.Icon)(obj));
+            }
+        }
+        
+        /// <summary>
         ///   System.Drawing.Bitmap türünde yerelleştirilmiş bir kaynak arar.
         /// </summary>
         internal static System.Drawing.Bitmap transfer_icon_icons_com_64677 {
