@@ -219,17 +219,17 @@ namespace LANFileSharingApp
             // 
             this.txtServerIP.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.txtServerIP.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.txtServerIP.Location = new System.Drawing.Point(47, 218);
+            this.txtServerIP.Location = new System.Drawing.Point(48, 218);
             this.txtServerIP.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.txtServerIP.Name = "txtServerIP";
-            this.txtServerIP.Size = new System.Drawing.Size(286, 15);
+            this.txtServerIP.Size = new System.Drawing.Size(285, 15);
             this.txtServerIP.TabIndex = 16;
             this.txtServerIP.TextChanged += new System.EventHandler(this.txtServerIP_TextChanged);
             // 
             // lblServerIP
             // 
             this.lblServerIP.AutoSize = true;
-            this.lblServerIP.Location = new System.Drawing.Point(44, 189);
+            this.lblServerIP.Location = new System.Drawing.Point(44, 185);
             this.lblServerIP.Name = "lblServerIP";
             this.lblServerIP.Size = new System.Drawing.Size(65, 16);
             this.lblServerIP.TabIndex = 17;

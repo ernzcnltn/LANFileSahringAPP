@@ -69,34 +69,52 @@ class Program
     {
         try
         {
-            NetworkStream stream = client.GetStream();
-            StreamReader reader = new StreamReader(stream);
-            StreamWriter writer = new StreamWriter(stream);
-
-            string clientMessage = reader.ReadLine();
-            Console.WriteLine($"Command from client: {clientMessage}");
-
-            string[] commandParts = clientMessage.Split(' ');
-            string command = commandParts[0].ToUpper();
-
-            switch (command)
+            using (NetworkStream stream = client.GetStream())
+            using (StreamReader reader = new StreamReader(stream))
+            using (StreamWriter writer = new StreamWriter(stream))
             {
-                case "LIST":
-                    SendFileList(writer);
-                    break;
-                case "UPLOAD":
-                    string fileName = commandParts[1];
-                    ReceiveFile(fileName, stream);
-                    break;
-                case "DOWNLOAD":
-                    string requestedFile = commandParts[1];
-                    SendFile(requestedFile, stream);
-                    break;
-                default:
-                    Console.WriteLine("Invalid command from client");
-                    break;
-            }
+                string clientMessage = reader.ReadLine();
+                if (clientMessage == null)
+                {
+                    throw new Exception("Client message is null");
+                }
 
+                Console.WriteLine($"Command from client: {clientMessage}");
+
+                string[] commandParts = clientMessage.Split(' ');
+                if (commandParts.Length < 1)
+                {
+                    throw new Exception("Command parts are missing");
+                }
+
+                string command = commandParts[0].ToUpper();
+
+                switch (command)
+                {
+                    case "LIST":
+                        SendFileList(writer);
+                        break;
+                    case "UPLOAD":
+                        if (commandParts.Length < 2)
+                        {
+                            throw new Exception("File name missing for upload command");
+                        }
+                        string fileName = commandParts[1];
+                        ReceiveFile(fileName, stream);
+                        break;
+                    case "DOWNLOAD":
+                        if (commandParts.Length < 2)
+                        {
+                            throw new Exception("File name missing for download command");
+                        }
+                        string requestedFile = commandParts[1];
+                        SendFile(requestedFile, stream);
+                        break;
+                    default:
+                        Console.WriteLine("Invalid command from client");
+                        break;
+                }
+            }
             client.Close();
         }
         catch (Exception ex)
@@ -127,6 +145,16 @@ class Program
     {
         try
         {
+            if (string.IsNullOrEmpty(fileName))
+            {
+                throw new Exception("File name is null or empty");
+            }
+
+            if (stream == null)
+            {
+                throw new Exception("NetworkStream is null");
+            }
+
             string filePath = Path.Combine(sharedFolderPath, fileName);
             byte[] buffer = new byte[1024];
             int bytesRead;
@@ -155,6 +183,16 @@ class Program
     {
         try
         {
+            if (string.IsNullOrEmpty(fileName))
+            {
+                throw new Exception("File name is null or empty");
+            }
+
+            if (stream == null)
+            {
+                throw new Exception("NetworkStream is null");
+            }
+
             string filePath = Path.Combine(sharedFolderPath, fileName);
 
             if (File.Exists(filePath))

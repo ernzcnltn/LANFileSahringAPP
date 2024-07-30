@@ -13,11 +13,12 @@ using Amazon.S3;
 using Amazon.S3.Transfer;
 using Amazon;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 
 namespace LANFileSharingApp
 {
-    
+
     public partial class Form1 : Form
     {
         private S3Helper s3Helper;
@@ -25,16 +26,17 @@ namespace LANFileSharingApp
         ResourceManager rm = new ResourceManager("LANFileSharingApp.Resources.Strings", typeof(Form1).Assembly);
 
         private string serverIPAddress;
-        private int port = 49152;
+        private int port;
         private bool isLoggedIn = false;
 
         public Form1()
         {
             InitializeComponent();
-            
-            string region = "eu-north-1"; 
-            s3Helper = new S3Helper(region);
 
+            string region = "eu-north-1";
+            string bucketName = "ernzcnltn";
+            s3Helper = new S3Helper(region, bucketName);
+            port = 49152;
 
             SetLanguage("tr");
             lstFiles.Enabled = false;
@@ -44,11 +46,13 @@ namespace LANFileSharingApp
             dtpDate.Enabled = false;
             cmbFileType.Enabled = false;
             txtSearch.Enabled = false;
-            
+
 
         }
 
-      
+
+
+
         private void SetLanguage(string culture)
         {
             Thread.CurrentThread.CurrentUICulture = new CultureInfo(culture);
@@ -66,74 +70,92 @@ namespace LANFileSharingApp
 
         }
 
-        private void btnLogin_Click(object sender, EventArgs e)
+        private async void btnLogin_Click(object sender, EventArgs e)
         {
             serverIPAddress = txtServerIP.Text;
+
+
 
             string username = txtUsername.Text;
             string password = txtPassword.Text;
 
-            if (SharingDatabase.ValidateUser(username, password))
+            // Sunucunun gerçekten çalışıp çalışmadığını ve portun geçerli olup olmadığını doğrulama
+            if (await IsServerAvailableAsync(serverIPAddress, port))
             {
-                MessageBox.Show("Login successful!", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                isLoggedIn = true;
+                if (SharingDatabase.ValidateUser(username, password))
+                {
+                    MessageBox.Show("Login successful!", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    isLoggedIn = true;
 
-                lstFiles.Enabled = true;
-                btnUpload.Enabled = true;
-                btnDownload.Enabled = true;
-                btnRefresh.Enabled = true;
-                dtpDate.Enabled=true;
-                cmbFileType.Enabled=true;
-                txtSearch.Enabled=true;
-                
-                LoadFileList();
+                    lstFiles.Enabled = true;
+                    btnUpload.Enabled = true;
+                    btnDownload.Enabled = true;
+                    btnRefresh.Enabled = true;
+                    dtpDate.Enabled = true;
+                    cmbFileType.Enabled = true;
+                    txtSearch.Enabled = true;
+
+                    await s3Helper.EnsureUserFolderExistsAsync(username);
+
+                    LoadFileList();
+                }
+                else
+                {
+                    MessageBox.Show("Username or password is incorrect!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             else
             {
-                MessageBox.Show("Username or password is incorrect!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Server is not available. Check port.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void LoadFileList()
+        private async Task<bool> IsServerAvailableAsync(string ipAddress, int port)
         {
-            if (!isLoggedIn) 
-            {               
+            try
+            {
+                using (var client = new TcpClient())
+                {
+                    await client.ConnectAsync(ipAddress, port);
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async void LoadFileList()
+        {
+            if (!isLoggedIn)
+            {
                 return;
             }
 
             try
             {
-                TcpClient client = new TcpClient(serverIPAddress, port);
-                NetworkStream stream = client.GetStream();
 
-                byte[] listCommand = Encoding.ASCII.GetBytes("LIST\n");
-                stream.Write(listCommand, 0, listCommand.Length);
+                string userPrefix = txtUsername.Text; 
+                var fileList = await s3Helper.ListFilesAsync(userPrefix);
 
-                StreamReader reader = new StreamReader(stream);
-                string fileList = reader.ReadToEnd();
                 lstFiles.Items.Clear();
                 DateTime selectedDate = dtpDate.Value.Date;
                 string selectedFileType = cmbFileType.SelectedItem.ToString();
                 string searchTerm = txtSearch.Text.Trim().ToLower();
 
-                foreach (var file in fileList.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                foreach (var file in fileList)
                 {
-                    string[] fileInfo = file.Split('|');
-                    string fileName = fileInfo[0];
-                    DateTime fileDate = DateTime.Parse(fileInfo[1]);
+                    string fileName = file.Key.Replace($"{userPrefix}/", ""); 
+                    DateTime fileDate = file.LastModified;
 
-                    
                     if ((selectedFileType == "All" || fileName.EndsWith(selectedFileType)) &&
                         fileDate.Date == selectedDate &&
                         fileName.ToLower().Contains(searchTerm))
                     {
-                        lstFiles.Items.Add($"{fileName} ");
+                        lstFiles.Items.Add($"{fileName}");
                     }
                 }
-
-                reader.Close();
-                stream.Close();
-                client.Close();
             }
             catch (Exception ex)
             {
@@ -141,21 +163,26 @@ namespace LANFileSharingApp
             }
         }
 
-        private void btnUpload_Click(object sender, EventArgs e)
+        private async void btnUpload_Click(object sender, EventArgs e)
         {
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
                 string sourceFilePath = openFileDialog1.FileName;
+                string userPrefix = txtUsername.Text; 
 
                 try
                 {
-                    
-                    s3Helper.UploadFileAsync(sourceFilePath).Wait();
+                    await s3Helper.UploadFileAsync(sourceFilePath, userPrefix);
+
+                    string fileName = Path.GetFileName(sourceFilePath);
+                    string localFilePath = Path.Combine(@"Uploads", fileName);
+                    File.Copy(sourceFilePath, localFilePath, true);
 
                     MessageBox.Show("File uploaded successfully", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                    
-                    lstFiles.Items.Add(Path.GetFileName(sourceFilePath));
+                    lstFiles.Items.Add(fileName);
+
+                    await LogUploadToServerAsync(fileName);
                 }
                 catch (Exception ex)
                 {
@@ -164,36 +191,45 @@ namespace LANFileSharingApp
             }
         }
 
-        private void btnDownload_Click(object sender, EventArgs e)
+        private async Task LogUploadToServerAsync(string fileName)
+        {
+            try
+            {
+                using (TcpClient client = new TcpClient(serverIPAddress, port))
+                {
+                    using (NetworkStream stream = client.GetStream())
+                    {
+                        using (StreamWriter writer = new StreamWriter(stream))
+                        {
+                            string logMessage = $"UPLOAD {fileName}\n";
+                            await writer.WriteAsync(logMessage);
+                            await writer.FlushAsync();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("An error occurred while logging the upload to the server: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async void btnDownload_Click(object sender, EventArgs e)
         {
             if (lstFiles.SelectedItem != null)
             {
                 string fileName = lstFiles.SelectedItem.ToString();
-
+                string userPrefix = txtUsername.Text; 
                 if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
                 {
                     string destinationFilePath = Path.Combine(folderBrowserDialog1.SelectedPath, fileName);
 
                     try
                     {
-                        TcpClient client = new TcpClient(serverIPAddress, port);
-                        NetworkStream stream = client.GetStream();
+                        await s3Helper.DownloadFileAsync(fileName, destinationFilePath, userPrefix);
 
-                        byte[] downloadCommand = Encoding.ASCII.GetBytes("DOWNLOAD " + fileName + "\n");
-                        stream.Write(downloadCommand, 0, downloadCommand.Length);
-
-                        using (FileStream fs = new FileStream(destinationFilePath, FileMode.Create, FileAccess.Write))
-                        {
-                            byte[] bytes = new byte[1024];
-                            int i;
-                            while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
-                            {
-                                fs.Write(bytes, 0, i);
-                            }
-                        }
-
-                        stream.Close();
-                        client.Close();
+                       
+                        await LogDownloadToServerAsync(fileName);
 
                         MessageBox.Show("File downloaded successfully!", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
@@ -209,11 +245,34 @@ namespace LANFileSharingApp
             }
         }
 
+        private async Task LogDownloadToServerAsync(string fileName)
+        {
+            try
+            {
+                using (TcpClient client = new TcpClient(serverIPAddress, port))
+                {
+                    using (NetworkStream stream = client.GetStream())
+                    {
+                        using (StreamWriter writer = new StreamWriter(stream))
+                        {
+                            string logMessage = $"DOWNLOAD {fileName}\n";
+                            await writer.WriteAsync(logMessage);
+                            await writer.FlushAsync();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("An error occurred while logging the download to the server: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
 
         private void Form1_Load(object sender, EventArgs e)
         {
             SharingDatabase.InitializeDatabase();
-           
+
             if (!SharingDatabase.ValidateUser("admin", "password"))
             {
                 SharingDatabase.AddUser("admin", "password");
@@ -253,37 +312,33 @@ namespace LANFileSharingApp
                 e.Effect = DragDropEffects.None;
         }
 
-        private void Form1_DragDrop(object sender, DragEventArgs e)
+        private async void Form1_DragDrop(object sender, DragEventArgs e)
         {
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
             foreach (string file in files)
             {
-                
-                UploadFile(file);
+                await UploadFileAsync(file);
             }
         }
 
-        private void UploadFile(string filePath)
+        private async Task UploadFileAsync(string filePath)
         {
             string fileName = Path.GetFileName(filePath);
+            string userPrefix = txtUsername.Text; 
+
             try
             {
-                
-                TcpClient client = new TcpClient(serverIPAddress, port);
-                NetworkStream stream = client.GetStream();
+        
+                await s3Helper.UploadFileAsync(filePath, userPrefix);
 
-                byte[] uploadCommand = Encoding.ASCII.GetBytes("UPLOAD " + fileName + "\n");
-                stream.Write(uploadCommand, 0, uploadCommand.Length);
+               
+                string localFilePath = Path.Combine(@"Uploads", fileName);
+                File.Copy(filePath, localFilePath, true);
 
-                byte[] fileBytes = File.ReadAllBytes(filePath);
-                stream.Write(fileBytes, 0, fileBytes.Length);
-
-                stream.Close();
-                client.Close();
+           
+                lstFiles.Items.Add(fileName);
 
                 MessageBox.Show("File uploaded successfully", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                lstFiles.Items.Add(fileName);
             }
             catch (Exception ex)
             {
@@ -294,7 +349,7 @@ namespace LANFileSharingApp
 
         private void txtSearch_TextChanged(object sender, EventArgs e)
         {
-             LoadFileList();
+            LoadFileList();
         }
 
         private void cmbFileType_SelectedIndexChanged(object sender, EventArgs e)
@@ -324,7 +379,7 @@ namespace LANFileSharingApp
 
         }
 
-       
+
 
         private void btnStartServer_Click(object sender, EventArgs e)
         {
